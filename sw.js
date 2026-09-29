@@ -1,5 +1,5 @@
 // Bump CACHE whenever a file changes so phones pick up the new version.
-const CACHE = 'charge-time-v2';
+const CACHE = 'charge-time-v3';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

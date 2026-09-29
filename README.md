@@ -20,10 +20,12 @@ The result updates as you type.
 ### How the estimate works
 
 - **AC (22 kW or less):** the charger speed is capped at the car's AC limit (22 kW),
-  and about 10% is added for charging losses.
+  and about 10% is added for charging losses (AC efficiency 90%).
 - **DC (above 22 kW):** power is capped by both the charger and the car. The car
   also slows charging as the battery fills, as real cars do (Zeekr's 10→80% claim
-  on a 480 kW charger is about 11 minutes).
+  on a 480 kW charger is about 11 minutes), and about 5% is added for charging
+  losses (DC efficiency 95%).
+- Both efficiencies can be changed under **Car settings** to match your receipts.
 - **Cost** = energy billed by the charger × your price per kWh.
 
 ## Putting it on your Android phone
