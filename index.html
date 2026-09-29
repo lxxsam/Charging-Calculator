@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Charge Time</title>
+  <meta name="description" content="Estimate how long your EV takes to charge to a target percentage.">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #d8dee6;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+      --accent-text: #ffffff;
+      --error: #b91c1c;
+      --error-soft: #fee2e2;
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --card: #131c2e;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --border: #26324a;
+        --accent: #2dd4bf;
+        --accent-soft: #123b3a;
+        --accent-text: #042f2e;
+        --error: #fca5a5;
+        --error-soft: #3b1515;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    }
+    main { max-width: 480px; margin: 0 auto; }
+    header { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 2px 14px; }
+    h1 { font-size: 1.35rem; margin: 0; }
+    .car-name { color: var(--muted); font-size: .85rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    label, .label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: 6px; }
+    .field + .field { margin-top: 18px; }
+    .hint { color: var(--muted); font-size: .8rem; margin-top: 6px; }
+    input[type=number], select {
+      width: 100%;
+      font: inherit;
+      font-size: 1.1rem;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      min-height: 48px;
+    }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .suffix-wrap { position: relative; }
+    .suffix-wrap input { padding-right: 64px; }
+    .suffix-wrap span {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none; font-size: .95rem;
+    }
+    .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .chips button {
+      font: inherit; font-weight: 600;
+      min-height: 48px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      padding: 6px 4px;
+      line-height: 1.15;
+    }
+    .chips button small { display: block; font-weight: 500; font-size: .7rem; color: var(--muted); }
+    .chips button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+    .chips button[aria-pressed=true] small { color: inherit; opacity: .85; }
+    .custom { margin-top: 10px; }
+    .custom[hidden] { display: none; }
+
+    .result { background: var(--accent-soft); border-color: transparent; }
+    .result .big { font-size: 2.4rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+    .result .sub { color: var(--muted); margin-top: 2px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+    .stat { background: var(--card); border-radius: 10px; padding: 10px; min-width: 0; }
+    .stat .k { color: var(--muted); font-size: .75rem; }
+    .stat .v { font-weight: 700; font-size: 1.05rem; overflow-wrap: anywhere; }
+    .note { color: var(--muted); font-size: .8rem; margin-top: 12px; }
+    .error { background: var(--error-soft); color: var(--error); border-color: transparent; font-weight: 600; }
+
+    details summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::after { content: "▾"; color: var(--muted); }
+    details[open] summary::after { content: "▴"; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .grid2 label { font-size: .85rem; }
+    .grid2 input { font-size: 1rem; }
+    .reset { margin-top: 14px; font: inherit; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>⚡ Charge Time</h1>
+    <span class="car-name" id="carName">Zeekr 7X LR</span>
+  </header>
+
+  <section class="card">
+    <div class="field">
+      <label for="current">Current charge</label>
+      <div class="suffix-wrap">
+        <input id="current" type="number" inputmode="numeric" min="0" max="100" step="1" placeholder="e.g. 25">
+        <span>%</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label" id="targetLabel">Charge to</span>
+      <div class="chips" id="targetChips" role="group" aria-labelledby="targetLabel">
+        <button type="button" data-value="80">80%</button>
+        <button type="button" data-value="90">90%</button>
+        <button type="button" data-value="100">100%</button>
+        <button type="button" data-value="custom">Other</button>
+      </div>
+      <div class="custom suffix-wrap" id="targetCustomWrap" hidden>
+        <input id="targetCustom" type="number" inputmode="numeric" min="1" max="100" step="1" placeholder="Target %" aria-label="Custom target percentage">
+        <span>%</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label" id="chargerLabel">Charger speed</span>
+      <div class="chips" id="chargerChips" role="group" aria-labelledby="chargerLabel">
+        <button type="button" data-value="11">11<small>kW AC</small></button>
+        <button type="button" data-value="22">22<small>kW AC</small></button>
+        <button type="button" data-value="80">80<small>kW DC</small></button>
+        <button type="button" data-value="480">480<small>kW DC</small></button>
+      </div>
+      <div class="chips" style="margin-top:8px;grid-template-columns:1fr">
+        <button type="button" data-value="custom" id="chargerCustomBtn">Other speed…</button>
+      </div>
+      <div class="custom suffix-wrap" id="chargerCustomWrap" hidden>
+        <input id="chargerCustom" type="number" inputmode="decimal" min="1" step="any" placeholder="Charger kW" aria-label="Custom charger speed in kW">
+        <span>kW</span>
+      </div>
+      <div class="hint">22 kW or less counts as AC; above that counts as DC fast charging.</div>
+    </div>
+
+    <div class="field">
+      <label for="price">Price for this charger</label>
+      <div class="suffix-wrap">
+        <input id="price" type="number" inputmode="decimal" min="0" step="0.01">
+        <span>SGD/kWh</span>
+      </div>
+      <div class="hint">Saved separately for each charger speed.</div>
+    </div>
+  </section>
+
+  <section class="card result" id="result" aria-live="polite"></section>
+
+  <section class="card">
+    <details id="settings">
+      <summary>Car settings</summary>
+      <div class="grid2">
+        <div>
+          <label for="capacity">Usable battery (kWh)</label>
+          <input id="capacity" type="number" inputmode="decimal" min="1" step="any">
+        </div>
+        <div>
+          <label for="maxAc">Car max AC (kW)</label>
+          <input id="maxAc" type="number" inputmode="decimal" min="1" step="any">
+        </div>
+        <div>
+          <label for="maxDc">Car max DC (kW)</label>
+          <input id="maxDc" type="number" inputmode="decimal" min="1" step="any">
+        </div>
+        <div>
+          <label for="acEff">AC efficiency (%)</label>
+          <input id="acEff" type="number" inputmode="numeric" min="50" max="100" step="1">
+        </div>
+      </div>
+      <div class="hint">Defaults: Zeekr 7X Long Range, 100 kWh battery (about 94 kWh usable), 22 kW AC, 480 kW DC.</div>
+      <button type="button" class="reset" id="resetBtn">Reset to Zeekr 7X defaults</button>
+    </details>
+  </section>
+</main>
+
+<script>
+(() => {
+  const DEFAULT_CAR = { capacity: 94, maxAc: 22, maxDc: 480, acEff: 90 };
+  const DC_EFF = 0.95;
+  const AC_THRESHOLD_KW = 22;
+  const DEFAULT_PRICES = { 11: 0.45, 22: 0.55, 80: 0.65, 480: 0.75 };
+  const DEFAULT_CUSTOM_PRICE = 0.60;
+
+  // Share of the car's peak DC power it can accept at each state of charge.
+  // Shaped so 10→80% on a 480 kW charger takes about 11 minutes, close to Zeekr's claim.
+  const DC_CURVE = [
+    [0, 0.80], [10, 1.00], [20, 1.00], [50, 0.83], [80, 0.42],
+    [90, 0.21], [95, 0.12], [100, 0.06]
+  ];
+
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(key, fallback) {
+      try { const v = localStorage.getItem('ct.' + key); return v === null ? fallback : JSON.parse(v); }
+      catch { return fallback; }
+    },
+    set(key, value) {
+      try { localStorage.setItem('ct.' + key, JSON.stringify(value)); } catch {}
+    }
+  };
+
+  const state = {
+    current: store.get('current', ''),
+    target: store.get('target', '80'),
+    targetCustom: store.get('targetCustom', ''),
+    charger: store.get('charger', '11'),
+    chargerCustom: store.get('chargerCustom', ''),
+    prices: store.get('prices', {}),
+    car: { ...DEFAULT_CAR, ...store.get('car', {}) }
+  };
+
+  function curveFactor(soc) {
+    for (let i = 1; i < DC_CURVE.length; i++) {
+      const [s1, f1] = DC_CURVE[i];
+      if (soc <= s1) {
+        const [s0, f0] = DC_CURVE[i - 1];
+        return f0 + (f1 - f0) * (soc - s0) / (s1 - s0);
+      }
+    }
+    return DC_CURVE[DC_CURVE.length - 1][1];
+  }
+
+  function calculate(from, to, chargerKw, car) {
+    const isAc = chargerKw <= AC_THRESHOLD_KW;
+    const kwhIntoBattery = car.capacity * (to - from) / 100;
+    if (isAc) {
+      const power = Math.min(chargerKw, car.maxAc);
+      const eff = car.acEff / 100;
+      const kwhFromGrid = kwhIntoBattery / eff;
+      return { isAc, hours: kwhFromGrid / power, kwhIntoBattery, kwhFromGrid, peak: power };
+    }
+    // DC: step through 0.1% slices, capping power by both the charger and the car's curve.
+    const step = 0.1;
+    let hours = 0;
+    for (let soc = from; soc < to - 1e-9; soc += step) {
+      const slice = Math.min(step, to - soc);
+      const carLimit = car.maxDc * curveFactor(soc + slice / 2);
+      const power = Math.min(chargerKw, carLimit);
+      hours += (car.capacity * slice / 100) / (power * DC_EFF);
+    }
+    return {
+      isAc, hours, kwhIntoBattery,
+      kwhFromGrid: kwhIntoBattery / DC_EFF,
+      peak: Math.min(chargerKw, car.maxDc)
+    };
+  }
+
+  function formatDuration(hours) {
+    const totalMin = Math.max(1, Math.round(hours * 60));
+    const h = Math.floor(totalMin / 60), m = totalMin % 60;
+    if (h === 0) return `${m} min`;
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  }
+
+  function formatFinish(hours) {
+    const now = new Date();
+    const end = new Date(now.getTime() + hours * 3600e3);
+    const time = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const days = Math.round((new Date(end).setHours(0,0,0,0) - new Date(now).setHours(0,0,0,0)) / 864e5);
+    if (days === 0) return time;
+    if (days === 1) return `${time} tomorrow`;
+    return `${time} (+${days} days)`;
+  }
+
+  const num = v => (v === '' || v === null ? NaN : Number(v));
+  const priceKey = () => state.charger === 'custom' ? 'custom' : state.charger;
+  const priceFor = key => key in state.prices ? state.prices[key] : (DEFAULT_PRICES[key] ?? DEFAULT_CUSTOM_PRICE);
+
+  function render() {
+    const from = num(state.current);
+    const to = state.target === 'custom' ? num(state.targetCustom) : num(state.target);
+    const kw = state.charger === 'custom' ? num(state.chargerCustom) : num(state.charger);
+    const price = num($('price').value);
+    const car = state.car;
+    const out = $('result');
+
+    let error = '';
+    if (isNaN(from)) error = 'Enter your current charge to see the estimate.';
+    else if (from < 0 || from > 100) error = 'Current charge must be between 0 and 100%.';
+    else if (isNaN(to) || to < 1 || to > 100) error = 'Enter a target between 1 and 100%.';
+    else if (to <= from) error = 'Target must be higher than the current charge.';
+    else if (isNaN(kw) || kw <= 0) error = 'Enter a charger speed in kW.';
+    else if (!(car.capacity > 0 && car.maxAc > 0 && car.maxDc > 0 && car.acEff > 0 && car.acEff <= 100))
+      error = 'Check the car settings below.';
+
+    out.classList.toggle('error', !!error && !isNaN(from));
+    if (error) { out.innerHTML = `<div>${error}</div>`; return; }
+
+    const r = calculate(from, to, kw, car);
+    const cost = isNaN(price) ? null : r.kwhFromGrid * price;
+    let limitNote = '';
+    if (r.isAc && kw > car.maxAc) limitNote = `Your car only accepts ${car.maxAc} kW on AC, so it charges at ${car.maxAc} kW. `;
+    if (!r.isAc && kw > car.maxDc) limitNote = `Your car peaks at ${car.maxDc} kW on DC. `;
+    const method = r.isAc
+      ? `AC charging at ${r.peak} kW, including about ${100 - car.acEff}% charging losses.`
+      : `DC fast charging peaking at ${Math.round(r.peak)} kW, slowing down as the battery fills.`;
+
+    out.innerHTML = `
+      <div class="sub">${from}% → ${to}%</div>
+      <div class="big">${formatDuration(r.hours)}</div>
+      <div class="sub">Ready at <strong>${formatFinish(r.hours)}</strong> if you start now</div>
+      <div class="stats">
+        <div class="stat"><div class="k">Added to battery</div><div class="v">${r.kwhIntoBattery.toFixed(1)} kWh</div></div>
+        <div class="stat"><div class="k">Billed energy</div><div class="v">${r.kwhFromGrid.toFixed(1)} kWh</div></div>
+        <div class="stat"><div class="k">Est. cost</div><div class="v">${cost === null ? '—' : 'S$' + cost.toFixed(2)}</div></div>
+      </div>
+      <div class="note">${limitNote}${method} This is an estimate: cold weather, battery temperature and shared chargers can make it slower.</div>`;
+  }
+
+  function setPressed(groupEls, value) {
+    groupEls.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.value === value)));
+  }
+
+  function syncUi() {
+    $('current').value = state.current;
+    setPressed(document.querySelectorAll('#targetChips button'), state.target);
+    $('targetCustomWrap').hidden = state.target !== 'custom';
+    $('targetCustom').value = state.targetCustom;
+    setPressed(document.querySelectorAll('#chargerChips button, #chargerCustomBtn'), state.charger);
+    $('chargerCustomWrap').hidden = state.charger !== 'custom';
+    $('chargerCustom').value = state.chargerCustom;
+    $('price').value = priceFor(priceKey()).toFixed(2);
+    ['capacity', 'maxAc', 'maxDc', 'acEff'].forEach(k => $(k).value = state.car[k]);
+    render();
+  }
+
+  $('current').addEventListener('input', e => { state.current = e.target.value; store.set('current', state.current); render(); });
+
+  document.querySelectorAll('#targetChips button').forEach(b => b.addEventListener('click', () => {
+    state.target = b.dataset.value; store.set('target', state.target); syncUi();
+    if (state.target === 'custom') $('targetCustom').focus();
+  }));
+  $('targetCustom').addEventListener('input', e => { state.targetCustom = e.target.value; store.set('targetCustom', state.targetCustom); render(); });
+
+  document.querySelectorAll('#chargerChips button, #chargerCustomBtn').forEach(b => b.addEventListener('click', () => {
+    state.charger = b.dataset.value; store.set('charger', state.charger); syncUi();
+    if (state.charger === 'custom') $('chargerCustom').focus();
+  }));
+  $('chargerCustom').addEventListener('input', e => { state.chargerCustom = e.target.value; store.set('chargerCustom', state.chargerCustom); render(); });
+
+  $('price').addEventListener('input', e => {
+    const v = num(e.target.value);
+    if (!isNaN(v)) { state.prices[priceKey()] = v; store.set('prices', state.prices); }
+    render();
+  });
+
+  ['capacity', 'maxAc', 'maxDc', 'acEff'].forEach(k => $(k).addEventListener('input', e => {
+    state.car[k] = num(e.target.value); store.set('car', state.car); render();
+  }));
+  $('resetBtn').addEventListener('click', () => { state.car = { ...DEFAULT_CAR }; store.set('car', state.car); syncUi(); });
+
+  // Keep "Ready at" accurate if the app stays open.
+  setInterval(render, 30e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+
+  syncUi();
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
