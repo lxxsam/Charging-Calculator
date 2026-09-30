@@ -12,7 +12,7 @@ usable, 22 kW max AC, 480 kW max DC). You can change them under **Car settings**
 
 1. Type your **current charge** (%).
 2. Pick a **target** (80 / 90 / 100 %, or **Other** to type your own).
-3. Pick a **charger speed** (11 / 22 kW AC; 50 / 100 / 120 / 180 / 250 / 480 kW DC; or **Other speed…**).
+3. Pick a **charger speed** (7.4 / 11 / 22 kW AC; 50 / 100 / 120 / 180 / 250 / 480 kW DC; or **Other speed…**).
 4. Check the **price per kWh** for that charger. Each charger speed remembers its own price.
 
 The result updates as you type.

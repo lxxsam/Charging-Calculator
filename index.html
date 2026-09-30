@@ -81,6 +81,7 @@
       color: var(--muted); pointer-events: none; font-size: .95rem;
     }
     .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    #chargerChips { grid-template-columns: repeat(3, 1fr); }
     .chips button {
       font: inherit; font-weight: 600;
       min-height: 48px;
@@ -151,6 +152,7 @@
     <div class="field">
       <span class="label" id="chargerLabel">Charger speed</span>
       <div class="chips" id="chargerChips" role="group" aria-labelledby="chargerLabel">
+        <button type="button" data-value="7.4">7.4<small>kW AC</small></button>
         <button type="button" data-value="11">11<small>kW AC</small></button>
         <button type="button" data-value="22">22<small>kW AC</small></button>
         <button type="button" data-value="50">50<small>kW DC</small></button>
@@ -217,7 +219,7 @@
 (() => {
   const DEFAULT_CAR = { capacity: 94, maxAc: 22, maxDc: 480, acEff: 90, dcEff: 95 };
   const AC_THRESHOLD_KW = 22;
-  const DEFAULT_PRICES = { 11: 0.45, 22: 0.55, 50: 0.75, 100: 0.75, 120: 0.75, 180: 0.75, 250: 0.75, 480: 0.75 };
+  const DEFAULT_PRICES = { 7.4: 0.45, 11: 0.45, 22: 0.55, 50: 0.75, 100: 0.75, 120: 0.75, 180: 0.75, 250: 0.75, 480: 0.75 };
   const DEFAULT_CUSTOM_PRICE = 0.60;
 
   // Share of the car's peak DC power it can accept at each state of charge.
