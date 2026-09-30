@@ -81,6 +81,7 @@
       color: var(--muted); pointer-events: none; font-size: .95rem;
     }
     .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    #chargerChips { grid-template-columns: repeat(3, 1fr); }
     .chips button {
       font: inherit; font-weight: 600;
       min-height: 48px;
@@ -112,7 +113,7 @@
     details summary::-webkit-details-marker { display: none; }
     details summary::after { content: "▾"; color: var(--muted); }
     details[open] summary::after { content: "▴"; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; align-items: end; }
     .grid2 label { font-size: .85rem; }
     .grid2 input { font-size: 1rem; }
     .reset { margin-top: 14px; font: inherit; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
@@ -151,6 +152,7 @@
     <div class="field">
       <span class="label" id="chargerLabel">Charger speed</span>
       <div class="chips" id="chargerChips" role="group" aria-labelledby="chargerLabel">
+        <button type="button" data-value="7.4">7.4<small>kW AC</small></button>
         <button type="button" data-value="11">11<small>kW AC</small></button>
         <button type="button" data-value="22">22<small>kW AC</small></button>
         <button type="button" data-value="50">50<small>kW DC</small></button>
@@ -202,8 +204,12 @@
           <label for="acEff">AC efficiency (%)</label>
           <input id="acEff" type="number" inputmode="numeric" min="50" max="100" step="1">
         </div>
+        <div>
+          <label for="dcEff">DC efficiency (%)</label>
+          <input id="dcEff" type="number" inputmode="numeric" min="50" max="100" step="1">
+        </div>
       </div>
-      <div class="hint">Defaults: Zeekr 7X Long Range, 100 kWh battery (about 94 kWh usable), 22 kW AC, 480 kW DC.</div>
+      <div class="hint">Defaults: Zeekr 7X Long Range, 100 kWh battery (about 94 kWh usable), 22 kW AC, 480 kW DC, 90% AC and 95% DC efficiency.</div>
       <button type="button" class="reset" id="resetBtn">Reset to Zeekr 7X defaults</button>
     </details>
   </section>
@@ -211,10 +217,9 @@
 
 <script>
 (() => {
-  const DEFAULT_CAR = { capacity: 94, maxAc: 22, maxDc: 480, acEff: 90 };
-  const DC_EFF = 0.95;
+  const DEFAULT_CAR = { capacity: 94, maxAc: 22, maxDc: 480, acEff: 90, dcEff: 95 };
   const AC_THRESHOLD_KW = 22;
-  const DEFAULT_PRICES = { 11: 0.45, 22: 0.55, 50: 0.75, 100: 0.75, 120: 0.75, 180: 0.75, 250: 0.75, 480: 0.75 };
+  const DEFAULT_PRICES = { 7.4: 0.45, 11: 0.45, 22: 0.55, 50: 0.75, 100: 0.75, 120: 0.75, 180: 0.75, 250: 0.75, 480: 0.75 };
   const DEFAULT_CUSTOM_PRICE = 0.60;
 
   // Share of the car's peak DC power it can accept at each state of charge.
@@ -269,16 +274,17 @@
     }
     // DC: step through 0.1% slices, capping power by both the charger and the car's curve.
     const step = 0.1;
+    const eff = car.dcEff / 100;
     let hours = 0;
     for (let soc = from; soc < to - 1e-9; soc += step) {
       const slice = Math.min(step, to - soc);
       const carLimit = car.maxDc * curveFactor(soc + slice / 2);
       const power = Math.min(chargerKw, carLimit);
-      hours += (car.capacity * slice / 100) / (power * DC_EFF);
+      hours += (car.capacity * slice / 100) / (power * eff);
     }
     return {
       isAc, hours, kwhIntoBattery,
-      kwhFromGrid: kwhIntoBattery / DC_EFF,
+      kwhFromGrid: kwhIntoBattery / eff,
       peak: Math.min(chargerKw, car.maxDc)
     };
   }
@@ -318,7 +324,7 @@
     else if (isNaN(to) || to < 1 || to > 100) error = 'Enter a target between 1 and 100%.';
     else if (to <= from) error = 'Target must be higher than the current charge.';
     else if (isNaN(kw) || kw <= 0) error = 'Enter a charger speed in kW.';
-    else if (!(car.capacity > 0 && car.maxAc > 0 && car.maxDc > 0 && car.acEff > 0 && car.acEff <= 100))
+    else if (!(car.capacity > 0 && car.maxAc > 0 && car.maxDc > 0 && car.acEff > 0 && car.acEff <= 100 && car.dcEff > 0 && car.dcEff <= 100))
       error = 'Check the car settings below.';
 
     out.classList.toggle('error', !!error && !isNaN(from));
@@ -331,7 +337,7 @@
     if (!r.isAc && kw > car.maxDc) limitNote = `Your car peaks at ${car.maxDc} kW on DC. `;
     const method = r.isAc
       ? `AC charging at ${r.peak} kW, including about ${100 - car.acEff}% charging losses.`
-      : `DC fast charging peaking at ${Math.round(r.peak)} kW, slowing down as the battery fills.`;
+      : `DC fast charging peaking at ${Math.round(r.peak)} kW, slowing down as the battery fills, including about ${100 - car.dcEff}% charging losses.`;
 
     out.innerHTML = `
       <div class="sub">${from}% → ${to}%</div>
@@ -358,7 +364,7 @@
     $('chargerCustomWrap').hidden = state.charger !== 'custom';
     $('chargerCustom').value = state.chargerCustom;
     $('price').value = priceFor(priceKey()).toFixed(2);
-    ['capacity', 'maxAc', 'maxDc', 'acEff'].forEach(k => $(k).value = state.car[k]);
+    ['capacity', 'maxAc', 'maxDc', 'acEff', 'dcEff'].forEach(k => $(k).value = state.car[k]);
     render();
   }
 
@@ -382,7 +388,7 @@
     render();
   });
 
-  ['capacity', 'maxAc', 'maxDc', 'acEff'].forEach(k => $(k).addEventListener('input', e => {
+  ['capacity', 'maxAc', 'maxDc', 'acEff', 'dcEff'].forEach(k => $(k).addEventListener('input', e => {
     state.car[k] = num(e.target.value); store.set('car', state.car); render();
   }));
   $('resetBtn').addEventListener('click', () => { state.car = { ...DEFAULT_CAR }; store.set('car', state.car); syncUi(); });
